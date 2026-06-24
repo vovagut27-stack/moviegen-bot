@@ -2,10 +2,6 @@ import OpenAI from 'openai';
 import type { GeneratedMovie } from '../types/movie.js';
 import { config } from '../utils/env.js';
 
-const openai = new OpenAI({
-  apiKey: config.openAiApiKey
-});
-
 function buildImagePrompt(movie: GeneratedMovie): string {
   return [
     movie.posterPrompt,
@@ -21,6 +17,14 @@ function buildImagePrompt(movie: GeneratedMovie): string {
 }
 
 export async function generatePosterUrl(movie: GeneratedMovie): Promise<string> {
+  if (!config.openAiApiKey) {
+    throw new Error('OPENAI_API_KEY is not configured; poster generation is disabled.');
+  }
+
+  const openai = new OpenAI({
+    apiKey: config.openAiApiKey
+  });
+
   const response = await openai.images.generate({
     model: config.openAiImageModel,
     prompt: buildImagePrompt(movie),

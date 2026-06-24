@@ -15,10 +15,6 @@ const movieSchema = z.object({
   posterPrompt: z.string().min(80).max(900)
 });
 
-const openai = new OpenAI({
-  apiKey: config.openAiApiKey
-});
-
 function buildSystemPrompt(): string {
   return [
     'Ты выдающийся русский кинодраматург, шоураннер и арт-директор.',
@@ -55,7 +51,25 @@ function buildUserPrompt(existingTitles: string[], duplicateReason?: string): st
   });
 }
 
-async function requestMovie(existingTitles: string[], duplicateReason?: string): Promise<GeneratedMovie> {
+function parseMovieJson(content: string): GeneratedMovie {
+  const jsonContent = content
+    .replace(/^```json\s*/i, '')
+    .replace(/^```\s*/i, '')
+    .replace(/\s*```$/i, '')
+    .trim();
+  const parsedJson = JSON.parse(jsonContent) as unknown;
+  return movieSchema.parse(parsedJson);
+}
+
+async function requestMovieFromOpenAi(existingTitles: string[], duplicateReason?: string): Promise<GeneratedMovie> {
+  if (!config.openAiApiKey) {
+    throw new Error('OPENAI_API_KEY is not configured and GEMINI_API_KEY is missing.');
+  }
+
+  const openai = new OpenAI({
+    apiKey: config.openAiApiKey
+  });
+
   const completion = await openai.chat.completions.create({
     model: config.openAiTextModel,
     temperature: 1.05,
@@ -72,8 +86,71 @@ async function requestMovie(existingTitles: string[], duplicateReason?: string):
     throw new Error('OpenAI returned an empty movie generation response.');
   }
 
-  const parsedJson = JSON.parse(content) as unknown;
-  return movieSchema.parse(parsedJson);
+  return parseMovieJson(content);
+}
+
+type GeminiGenerateContentResponse = {
+  candidates?: Array<{
+    content?: {
+      parts?: Array<{
+        text?: string;
+      }>;
+    };
+  }>;
+  error?: {
+    code?: number;
+    message?: string;
+    status?: string;
+  };
+};
+
+async function requestMovieFromGemini(existingTitles: string[], duplicateReason?: string): Promise<GeneratedMovie> {
+  const response = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${config.geminiTextModel}:generateContent?key=${config.geminiApiKey}`,
+    {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json'
+      },
+      body: JSON.stringify({
+        systemInstruction: {
+          parts: [{ text: buildSystemPrompt() }]
+        },
+        contents: [
+          {
+            role: 'user',
+            parts: [{ text: buildUserPrompt(existingTitles, duplicateReason) }]
+          }
+        ],
+        generationConfig: {
+          temperature: 1.05,
+          responseMimeType: 'application/json'
+        }
+      })
+    }
+  );
+
+  const data = (await response.json()) as GeminiGenerateContentResponse;
+
+  if (!response.ok) {
+    throw new Error(`Gemini API error: ${data.error?.status ?? response.status} ${data.error?.message ?? ''}`.trim());
+  }
+
+  const content = data.candidates?.[0]?.content?.parts?.map((part) => part.text ?? '').join('').trim();
+
+  if (!content) {
+    throw new Error('Gemini returned an empty movie generation response.');
+  }
+
+  return parseMovieJson(content);
+}
+
+async function requestMovie(existingTitles: string[], duplicateReason?: string): Promise<GeneratedMovie> {
+  if (config.geminiApiKey) {
+    return requestMovieFromGemini(existingTitles, duplicateReason);
+  }
+
+  return requestMovieFromOpenAi(existingTitles, duplicateReason);
 }
 
 export async function generateUniqueMovie(maxAttempts = 5): Promise<GeneratedMovie> {
