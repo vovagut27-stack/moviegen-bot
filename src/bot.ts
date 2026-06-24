@@ -2,7 +2,7 @@ import { pathToFileURL } from 'node:url';
 import { Markup, Telegraf, type Context } from 'telegraf';
 import { generatePosterUrl } from './services/imageGenerator.js';
 import { generateUniqueMovie } from './services/movieGenerator.js';
-import { findRealMovieMedia } from './services/realMovieMedia.js';
+import { findRealMovieDetails } from './services/realMovieMedia.js';
 import { movieDatabase } from './services/database.js';
 import { config } from './utils/env.js';
 import { formatMovieCaption } from './utils/formatMovie.js';
@@ -32,7 +32,7 @@ export async function sendMainMenu(ctx: Context): Promise<void> {
     [
       'Привет! Я <b>MovieGen Bot</b>.',
       '',
-      'Нажми кнопку ниже, и я подберу реальный фильм с жанрами, рейтингом, режиссёром, актёрами и реальным постером или кадром.'
+      'Нажми кнопку ниже, и я подберу реальный фильм с жанрами, рейтингом, режиссёром, актёрами, постером или кадром и трейлером.'
     ].join('\n'),
     {
       parse_mode: 'HTML',
@@ -46,25 +46,32 @@ export async function generateAndSendMovie(ctx: Context): Promise<void> {
   console.log(`[moviegen] generation started for update ${updateId}`);
 
   await ctx.replyWithChatAction('typing');
-  await ctx.reply('Подбираю реальный фильм и ищу постер или кадр. Это может занять немного времени...');
+  await ctx.reply('Подбираю реальный фильм, ищу постер или кадр и трейлер. Это может занять немного времени...');
 
   const movie = await generateUniqueMovie();
   console.log(`[moviegen] movie generated for update ${updateId}: ${movie.title}`);
 
   await ctx.replyWithChatAction('upload_photo');
   let posterUrl: string | undefined;
+  let trailerUrl: string | undefined;
   let mediaSource = 'none';
 
   try {
-    const realMedia = await findRealMovieMedia(movie);
+    const realMovieDetails = await findRealMovieDetails(movie);
 
-    if (realMedia) {
-      posterUrl = realMedia.url;
-      mediaSource = realMedia.source;
-      console.log(`[moviegen] real media found for update ${updateId}: ${realMedia.source}`);
+    trailerUrl = realMovieDetails.trailerUrl;
+
+    if (realMovieDetails.media) {
+      posterUrl = realMovieDetails.media.url;
+      mediaSource = realMovieDetails.media.source;
+      console.log(`[moviegen] real media found for update ${updateId}: ${realMovieDetails.media.source}`);
+    }
+
+    if (trailerUrl) {
+      console.log(`[moviegen] trailer found for update ${updateId}`);
     }
   } catch (error) {
-    console.error(`[moviegen] real media lookup failed for update ${updateId}:`, error);
+    console.error(`[moviegen] real media/trailer lookup failed for update ${updateId}:`, error);
   }
 
   if (!posterUrl) {
@@ -80,7 +87,8 @@ export async function generateAndSendMovie(ctx: Context): Promise<void> {
   await movieDatabase.saveMovie(movie, posterUrl ?? '');
   console.log(`[moviegen] movie saved for update ${updateId} with media source: ${mediaSource}`);
 
-  const caption = formatMovieCaption(movie);
+  const trailerLine = trailerUrl ? `\n\n<b>Трейлер:</b> ${trailerUrl}` : '';
+  const caption = `${formatMovieCaption(movie)}${trailerLine}`;
 
   if (!posterUrl) {
     await ctx.reply(
@@ -170,7 +178,7 @@ export function createBot(options: BotOptions = {}): Telegraf<Context> {
 export async function setBotCommands(bot: Telegraf<Context>): Promise<void> {
   await bot.telegram.setMyCommands([
     { command: 'start', description: 'Открыть главное меню' },
-    { command: 'new', description: 'Сгенерировать новый фильм' }
+    { command: 'new', description: 'Подобрать фильм' }
   ]);
 }
 

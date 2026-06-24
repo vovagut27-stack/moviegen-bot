@@ -6,6 +6,7 @@ type TmdbSearchResponse = {
 };
 
 type TmdbMovieResult = {
+  id?: number;
   title?: string;
   original_title?: string;
   release_date?: string;
@@ -18,6 +19,24 @@ type TmdbMovieResult = {
 export type RealMovieMedia = {
   url: string;
   source: 'tmdb-poster' | 'tmdb-backdrop';
+};
+
+export type RealMovieDetails = {
+  media?: RealMovieMedia;
+  trailerUrl?: string;
+};
+
+type TmdbVideosResponse = {
+  results?: TmdbVideoResult[];
+};
+
+type TmdbVideoResult = {
+  key?: string;
+  name?: string;
+  site?: string;
+  type?: string;
+  official?: boolean;
+  published_at?: string;
 };
 
 function buildTmdbImageUrl(path: string, source: RealMovieMedia['source']): string {
@@ -58,34 +77,81 @@ async function searchTmdb(query: string, movie: GeneratedMovie): Promise<TmdbMov
   return data.results ?? [];
 }
 
-export async function findRealMovieMedia(movie: GeneratedMovie): Promise<RealMovieMedia | undefined> {
-  if (!config.tmdbApiKey) {
-    return undefined;
-  }
-
-  const queries = [movie.title, `${movie.title} ${movie.year}`];
-  const results = (await Promise.all(queries.map((query) => searchTmdb(query, movie)))).flat();
-  const bestResult = results
-    .filter((result) => result.poster_path || result.backdrop_path)
-    .sort((left, right) => scoreResult(right, movie) - scoreResult(left, movie))[0];
-
-  if (!bestResult) {
-    return undefined;
-  }
-
-  if (bestResult.poster_path) {
+function pickMedia(result: TmdbMovieResult): RealMovieMedia | undefined {
+  if (result.poster_path) {
     return {
-      url: buildTmdbImageUrl(bestResult.poster_path, 'tmdb-poster'),
+      url: buildTmdbImageUrl(result.poster_path, 'tmdb-poster'),
       source: 'tmdb-poster'
     };
   }
 
-  if (bestResult.backdrop_path) {
+  if (result.backdrop_path) {
     return {
-      url: buildTmdbImageUrl(bestResult.backdrop_path, 'tmdb-backdrop'),
+      url: buildTmdbImageUrl(result.backdrop_path, 'tmdb-backdrop'),
       source: 'tmdb-backdrop'
     };
   }
 
   return undefined;
+}
+
+function scoreVideo(video: TmdbVideoResult): number {
+  const type = video.type?.toLowerCase();
+  const name = video.name?.toLowerCase() ?? '';
+  const officialScore = video.official ? 50 : 0;
+  const typeScore = type === 'trailer' ? 100 : type === 'teaser' ? 60 : 10;
+  const nameScore = name.includes('official') || name.includes('trailer') || name.includes('трейлер') ? 30 : 0;
+
+  return officialScore + typeScore + nameScore;
+}
+
+async function getMovieTrailerUrl(movieId: number): Promise<string | undefined> {
+  const languages = ['ru-RU', 'en-US'];
+
+  for (const language of languages) {
+    const response = await fetch(`https://api.themoviedb.org/3/movie/${movieId}/videos?language=${language}`, {
+      headers: {
+        Authorization: `Bearer ${config.tmdbApiKey}`,
+        accept: 'application/json'
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error(`TMDb videos API error: ${response.status} ${response.statusText}`);
+    }
+
+    const data = (await response.json()) as TmdbVideosResponse;
+    const bestVideo = (data.results ?? [])
+      .filter((video) => video.site?.toLowerCase() === 'youtube' && video.key)
+      .sort((left, right) => scoreVideo(right) - scoreVideo(left))[0];
+
+    if (bestVideo?.key) {
+      return `https://www.youtube.com/watch?v=${bestVideo.key}`;
+    }
+  }
+
+  return undefined;
+}
+
+export async function findRealMovieDetails(movie: GeneratedMovie): Promise<RealMovieDetails> {
+  if (!config.tmdbApiKey) {
+    return {};
+  }
+
+  const queries = [movie.title, `${movie.title} ${movie.year}`];
+  const results = (await Promise.all(queries.map((query) => searchTmdb(query, movie)))).flat();
+  const bestResult = results
+    .filter((result) => result.id)
+    .sort((left, right) => scoreResult(right, movie) - scoreResult(left, movie))[0];
+
+  if (!bestResult) {
+    return {};
+  }
+
+  const trailerUrl = bestResult.id ? await getMovieTrailerUrl(bestResult.id) : undefined;
+
+  return {
+    media: pickMedia(bestResult),
+    trailerUrl
+  };
 }
