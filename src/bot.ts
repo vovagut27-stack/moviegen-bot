@@ -5,10 +5,11 @@ import { generateUniqueMovie } from './services/movieGenerator.js';
 import { findRealMovieDetails } from './services/realMovieMedia.js';
 import { movieDatabase } from './services/database.js';
 import { config } from './utils/env.js';
-import { formatMovieCaption } from './utils/formatMovie.js';
+import { escapeHtml, formatMovieCaption } from './utils/formatMovie.js';
 
 const NEW_MOVIE_ACTION = 'movie:new';
 const MAIN_MENU_ACTION = 'menu:main';
+const TELEGRAM_PHOTO_CAPTION_LIMIT = 1024;
 
 type BotOptions = {
   scheduleTask?: (task: Promise<void>) => void;
@@ -87,7 +88,7 @@ export async function generateAndSendMovie(ctx: Context): Promise<void> {
   await movieDatabase.saveMovie(movie, posterUrl ?? '');
   console.log(`[moviegen] movie saved for update ${updateId} with media source: ${mediaSource}`);
 
-  const trailerLine = trailerUrl ? `\n\n<b>Трейлер:</b> ${trailerUrl}` : '';
+  const trailerLine = trailerUrl ? `\n\n<b>Трейлер:</b> <a href="${escapeHtml(trailerUrl)}">Смотреть на YouTube</a>` : '';
   const caption = `${formatMovieCaption(movie)}${trailerLine}`;
 
   if (!posterUrl) {
@@ -100,15 +101,23 @@ export async function generateAndSendMovie(ctx: Context): Promise<void> {
     );
   } else {
     try {
-      await ctx.replyWithPhoto(posterUrl, {
-        caption,
-        parse_mode: 'HTML',
-        ...movieActionsKeyboard()
-      });
+      if (caption.length <= TELEGRAM_PHOTO_CAPTION_LIMIT) {
+        await ctx.replyWithPhoto(posterUrl, {
+          caption,
+          parse_mode: 'HTML',
+          ...movieActionsKeyboard()
+        });
+      } else {
+        await ctx.replyWithPhoto(posterUrl);
+        await ctx.reply(caption, {
+          parse_mode: 'HTML',
+          ...movieActionsKeyboard()
+        });
+      }
     } catch (error) {
       console.error(`[moviegen] failed to send poster image for update ${updateId}:`, error);
       await ctx.reply(
-        `${caption}\n\nПостер: ${posterUrl}`,
+        `${caption}\n\nПостер: ${escapeHtml(posterUrl)}`,
         {
           parse_mode: 'HTML',
           ...movieActionsKeyboard()

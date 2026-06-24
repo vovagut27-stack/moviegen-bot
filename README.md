@@ -39,7 +39,7 @@ GROQ_API_KEY=your_groq_api_key
 GROQ_TEXT_MODEL=llama-3.1-8b-instant
 GEMINI_API_KEY=your_gemini_api_key
 GEMINI_TEXT_MODEL=gemini-2.0-flash
-TMDB_API_KEY=your_tmdb_api_read_access_token
+TMDB_API_KEY=your_tmdb_v4_read_access_token_or_v3_api_key
 OPENAI_API_KEY=your_openai_api_key_optional
 OPENAI_TEXT_MODEL=gpt-4.1-mini
 OPENAI_IMAGE_MODEL=dall-e-3
@@ -49,7 +49,7 @@ DATABASE_PATH=data/movies.json
 
 `GROQ_API_KEY` можно создать в Groq Console: https://console.groq.com/keys.
 `GEMINI_API_KEY` можно создать в Google AI Studio: https://aistudio.google.com/app/apikey.
-`TMDB_API_KEY` можно создать в TMDb API settings: https://www.themoviedb.org/settings/api.
+`TMDB_API_KEY` можно создать в TMDb API settings: https://www.themoviedb.org/settings/api. Поддерживается v4 Read Access Token и короткий v3 API key.
 
 ## Запуск
 

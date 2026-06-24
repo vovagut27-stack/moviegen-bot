@@ -44,6 +44,28 @@ function buildTmdbImageUrl(path: string, source: RealMovieMedia['source']): stri
   return `https://image.tmdb.org/t/p/${size}${path}`;
 }
 
+async function fetchTmdb<T>(path: string, params: URLSearchParams): Promise<T> {
+  const headers: Record<string, string> = {
+    accept: 'application/json'
+  };
+
+  if (config.tmdbApiKey.startsWith('eyJ')) {
+    headers.Authorization = `Bearer ${config.tmdbApiKey}`;
+  } else {
+    params.set('api_key', config.tmdbApiKey);
+  }
+
+  const response = await fetch(`https://api.themoviedb.org/3${path}?${params.toString()}`, {
+    headers
+  });
+
+  if (!response.ok) {
+    throw new Error(`TMDb API error: ${response.status} ${response.statusText}`);
+  }
+
+  return response.json() as Promise<T>;
+}
+
 function scoreResult(result: TmdbMovieResult, movie: GeneratedMovie): number {
   const releaseYear = result.release_date ? Number(result.release_date.slice(0, 4)) : 0;
   const yearScore = releaseYear === movie.year ? 100 : Math.max(0, 30 - Math.abs(releaseYear - movie.year) * 10);
@@ -62,18 +84,7 @@ async function searchTmdb(query: string, movie: GeneratedMovie): Promise<TmdbMov
     include_adult: 'false'
   });
 
-  const response = await fetch(`https://api.themoviedb.org/3/search/movie?${params.toString()}`, {
-    headers: {
-      Authorization: `Bearer ${config.tmdbApiKey}`,
-      accept: 'application/json'
-    }
-  });
-
-  if (!response.ok) {
-    throw new Error(`TMDb API error: ${response.status} ${response.statusText}`);
-  }
-
-  const data = (await response.json()) as TmdbSearchResponse;
+  const data = await fetchTmdb<TmdbSearchResponse>('/search/movie', params);
   return data.results ?? [];
 }
 
@@ -109,18 +120,10 @@ async function getMovieTrailerUrl(movieId: number): Promise<string | undefined> 
   const languages = ['ru-RU', 'en-US'];
 
   for (const language of languages) {
-    const response = await fetch(`https://api.themoviedb.org/3/movie/${movieId}/videos?language=${language}`, {
-      headers: {
-        Authorization: `Bearer ${config.tmdbApiKey}`,
-        accept: 'application/json'
-      }
-    });
+    const data = await fetchTmdb<TmdbVideosResponse>(`/movie/${movieId}/videos`, new URLSearchParams({
+      language
+    }));
 
-    if (!response.ok) {
-      throw new Error(`TMDb videos API error: ${response.status} ${response.statusText}`);
-    }
-
-    const data = (await response.json()) as TmdbVideosResponse;
     const bestVideo = (data.results ?? [])
       .filter((video) => video.site?.toLowerCase() === 'youtube' && video.key)
       .sort((left, right) => scoreVideo(right) - scoreVideo(left))[0];
