@@ -51,29 +51,45 @@ export async function generateAndSendMovie(ctx: Context): Promise<void> {
   console.log(`[moviegen] movie generated for update ${updateId}: ${movie.title}`);
 
   await ctx.replyWithChatAction('upload_photo');
-  const posterUrl = await generatePosterUrl(movie);
-  console.log(`[moviegen] poster generated for update ${updateId}`);
+  let posterUrl: string | undefined;
 
-  await movieDatabase.saveMovie(movie, posterUrl);
+  try {
+    posterUrl = await generatePosterUrl(movie);
+    console.log(`[moviegen] poster generated for update ${updateId}`);
+  } catch (error) {
+    console.error(`[moviegen] poster generation failed for update ${updateId}:`, error);
+  }
+
+  await movieDatabase.saveMovie(movie, posterUrl ?? '');
   console.log(`[moviegen] movie saved for update ${updateId}`);
 
   const caption = formatMovieCaption(movie);
 
-  try {
-    await ctx.replyWithPhoto(posterUrl, {
-      caption,
-      parse_mode: 'HTML',
-      ...movieActionsKeyboard()
-    });
-  } catch (error) {
-    console.error('Failed to send poster image:', error);
+  if (!posterUrl) {
     await ctx.reply(
-      `${caption}\n\nПостер: ${posterUrl}`,
+      `${caption}\n\nПостер не удалось сгенерировать, но фильм уже готов.`,
       {
         parse_mode: 'HTML',
         ...movieActionsKeyboard()
       }
     );
+  } else {
+    try {
+      await ctx.replyWithPhoto(posterUrl, {
+        caption,
+        parse_mode: 'HTML',
+        ...movieActionsKeyboard()
+      });
+    } catch (error) {
+      console.error(`[moviegen] failed to send poster image for update ${updateId}:`, error);
+      await ctx.reply(
+        `${caption}\n\nПостер: ${posterUrl}`,
+        {
+          parse_mode: 'HTML',
+          ...movieActionsKeyboard()
+        }
+      );
+    }
   }
 
   console.log(`[moviegen] generation completed for update ${updateId}`);

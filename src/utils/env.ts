@@ -26,5 +26,5 @@ export const config = {
   openAiTextModel: parsedEnv.data.OPENAI_TEXT_MODEL,
   openAiImageModel: parsedEnv.data.OPENAI_IMAGE_MODEL,
   openAiImageSize: parsedEnv.data.OPENAI_IMAGE_SIZE,
-  databasePath: parsedEnv.data.DATABASE_PATH
+  databasePath: process.env.VERCEL ? '/tmp/moviegen-movies.json' : parsedEnv.data.DATABASE_PATH
 } as const;
