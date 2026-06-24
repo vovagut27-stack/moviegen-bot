@@ -1,13 +1,13 @@
 # MovieGen Bot
 
-Telegram-бот на Node.js + TypeScript, который подбирает реальные существующие фильмы и генерирует AI-постеры к ним.
+Telegram-бот на Node.js + TypeScript, который подбирает реальные существующие фильмы и показывает реальные постеры или кадры к ним.
 
 ## Возможности
 
 - `/start` с главным меню и кнопкой `🎥 Подобрать фильм`.
 - Inline-кнопки `🎥 Ещё один фильм` и `🏠 В главное меню`.
 - Подбор реального фильма с названием, жанрами, годом, рейтингом, режиссёром, актёрами и синопсисом через Groq, Gemini или OpenAI.
-- Генерация постера через OpenAI Images API (`dall-e-3` по умолчанию), если есть OpenAI quota.
+- Поиск реального постера или кадра через TMDb; AI-постер через OpenAI используется только как fallback.
 - Хранение всех фильмов в локальном JSON-файле через LowDB.
 - Проверка дублей по нормализованному названию и trigram-похожести.
 
@@ -39,6 +39,7 @@ GROQ_API_KEY=your_groq_api_key
 GROQ_TEXT_MODEL=llama-3.1-8b-instant
 GEMINI_API_KEY=your_gemini_api_key
 GEMINI_TEXT_MODEL=gemini-2.0-flash
+TMDB_API_KEY=your_tmdb_api_read_access_token
 OPENAI_API_KEY=your_openai_api_key_optional
 OPENAI_TEXT_MODEL=gpt-4.1-mini
 OPENAI_IMAGE_MODEL=dall-e-3
@@ -48,6 +49,7 @@ DATABASE_PATH=data/movies.json
 
 `GROQ_API_KEY` можно создать в Groq Console: https://console.groq.com/keys.
 `GEMINI_API_KEY` можно создать в Google AI Studio: https://aistudio.google.com/app/apikey.
+`TMDB_API_KEY` можно создать в TMDb API settings: https://www.themoviedb.org/settings/api.
 
 ## Запуск
 
@@ -69,6 +71,7 @@ npm start
 - `GROQ_TEXT_MODEL` — основная модель для сценарной генерации фильма, если задан `GROQ_API_KEY`.
 - `GEMINI_TEXT_MODEL` — fallback-модель для сценарной генерации фильма, если задан `GEMINI_API_KEY`.
 - `OPENAI_TEXT_MODEL` — fallback-модель для сценарной генерации фильма, если Groq и Gemini не заданы.
-- `OPENAI_IMAGE_MODEL` — модель для генерации постера. Если OpenAI недоступен или нет quota, бот всё равно отправит фильм текстом.
+- `TMDB_API_KEY` — источник реальных постеров и кадров из фильмов.
+- `OPENAI_IMAGE_MODEL` — fallback-модель для AI-постера. Если OpenAI недоступен или нет quota, бот всё равно отправит фильм текстом.
 
 Если захочешь заменить провайдера на Grok, Flux или Ideogram, основной код изолирован в `src/services/movieGenerator.ts` и `src/services/imageGenerator.ts`.

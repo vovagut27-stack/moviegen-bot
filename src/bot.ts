@@ -2,6 +2,7 @@ import { pathToFileURL } from 'node:url';
 import { Markup, Telegraf, type Context } from 'telegraf';
 import { generatePosterUrl } from './services/imageGenerator.js';
 import { generateUniqueMovie } from './services/movieGenerator.js';
+import { findRealMovieMedia } from './services/realMovieMedia.js';
 import { movieDatabase } from './services/database.js';
 import { config } from './utils/env.js';
 import { formatMovieCaption } from './utils/formatMovie.js';
@@ -31,7 +32,7 @@ export async function sendMainMenu(ctx: Context): Promise<void> {
     [
       'Привет! Я <b>MovieGen Bot</b>.',
       '',
-      'Нажми кнопку ниже, и я подберу реальный фильм с жанрами, рейтингом, режиссёром, актёрами и AI-постером.'
+      'Нажми кнопку ниже, и я подберу реальный фильм с жанрами, рейтингом, режиссёром, актёрами и реальным постером или кадром.'
     ].join('\n'),
     {
       parse_mode: 'HTML',
@@ -45,29 +46,45 @@ export async function generateAndSendMovie(ctx: Context): Promise<void> {
   console.log(`[moviegen] generation started for update ${updateId}`);
 
   await ctx.replyWithChatAction('typing');
-  await ctx.reply('Подбираю реальный фильм и готовлю постер. Это может занять немного времени...');
+  await ctx.reply('Подбираю реальный фильм и ищу постер или кадр. Это может занять немного времени...');
 
   const movie = await generateUniqueMovie();
   console.log(`[moviegen] movie generated for update ${updateId}: ${movie.title}`);
 
   await ctx.replyWithChatAction('upload_photo');
   let posterUrl: string | undefined;
+  let mediaSource = 'none';
 
   try {
-    posterUrl = await generatePosterUrl(movie);
-    console.log(`[moviegen] poster generated for update ${updateId}`);
+    const realMedia = await findRealMovieMedia(movie);
+
+    if (realMedia) {
+      posterUrl = realMedia.url;
+      mediaSource = realMedia.source;
+      console.log(`[moviegen] real media found for update ${updateId}: ${realMedia.source}`);
+    }
   } catch (error) {
-    console.error(`[moviegen] poster generation failed for update ${updateId}:`, error);
+    console.error(`[moviegen] real media lookup failed for update ${updateId}:`, error);
+  }
+
+  if (!posterUrl) {
+    try {
+      posterUrl = await generatePosterUrl(movie);
+      mediaSource = 'ai-poster';
+      console.log(`[moviegen] AI poster generated for update ${updateId}`);
+    } catch (error) {
+      console.error(`[moviegen] AI poster generation failed for update ${updateId}:`, error);
+    }
   }
 
   await movieDatabase.saveMovie(movie, posterUrl ?? '');
-  console.log(`[moviegen] movie saved for update ${updateId}`);
+  console.log(`[moviegen] movie saved for update ${updateId} with media source: ${mediaSource}`);
 
   const caption = formatMovieCaption(movie);
 
   if (!posterUrl) {
     await ctx.reply(
-      `${caption}\n\nПостер не удалось сгенерировать, но фильм уже готов.`,
+      `${caption}\n\nПостер или кадр не удалось найти, но фильм уже готов.`,
       {
         parse_mode: 'HTML',
         ...movieActionsKeyboard()
