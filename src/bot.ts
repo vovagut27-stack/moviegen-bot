@@ -127,7 +127,7 @@ export function createBot(options: BotOptions = {}): Telegraf<Context> {
 
       try {
         await ctx.reply(
-          'Не получилось подобрать фильм. Проверь AI API key/лимиты и попробуй ещё раз.',
+          'Не получилось подобрать фильм. Попробуй ещё раз через минуту.',
           movieActionsKeyboard()
         );
       } catch (replyError) {
