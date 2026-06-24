@@ -63,7 +63,7 @@ function parseMovieJson(content: string): GeneratedMovie {
 
 async function requestMovieFromOpenAi(existingTitles: string[], duplicateReason?: string): Promise<GeneratedMovie> {
   if (!config.openAiApiKey) {
-    throw new Error('OPENAI_API_KEY is not configured and GEMINI_API_KEY is missing.');
+    throw new Error('No text AI provider is configured. Add GROQ_API_KEY, GEMINI_API_KEY, or OPENAI_API_KEY.');
   }
 
   const openai = new OpenAI({
@@ -84,6 +84,31 @@ async function requestMovieFromOpenAi(existingTitles: string[], duplicateReason?
 
   if (!content) {
     throw new Error('OpenAI returned an empty movie generation response.');
+  }
+
+  return parseMovieJson(content);
+}
+
+async function requestMovieFromGroq(existingTitles: string[], duplicateReason?: string): Promise<GeneratedMovie> {
+  const groq = new OpenAI({
+    apiKey: config.groqApiKey,
+    baseURL: 'https://api.groq.com/openai/v1'
+  });
+
+  const completion = await groq.chat.completions.create({
+    model: config.groqTextModel,
+    temperature: 1.05,
+    response_format: { type: 'json_object' },
+    messages: [
+      { role: 'system', content: buildSystemPrompt() },
+      { role: 'user', content: buildUserPrompt(existingTitles, duplicateReason) }
+    ]
+  });
+
+  const content = completion.choices[0]?.message.content;
+
+  if (!content) {
+    throw new Error('Groq returned an empty movie generation response.');
   }
 
   return parseMovieJson(content);
@@ -146,6 +171,10 @@ async function requestMovieFromGemini(existingTitles: string[], duplicateReason?
 }
 
 async function requestMovie(existingTitles: string[], duplicateReason?: string): Promise<GeneratedMovie> {
+  if (config.groqApiKey) {
+    return requestMovieFromGroq(existingTitles, duplicateReason);
+  }
+
   if (config.geminiApiKey) {
     return requestMovieFromGemini(existingTitles, duplicateReason);
   }

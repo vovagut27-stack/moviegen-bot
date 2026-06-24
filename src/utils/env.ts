@@ -3,6 +3,8 @@ import { z } from 'zod';
 
 const envSchema = z.object({
   TELEGRAM_BOT_TOKEN: z.string().min(1, 'TELEGRAM_BOT_TOKEN is required'),
+  GROQ_API_KEY: z.string().default(''),
+  GROQ_TEXT_MODEL: z.string().default('llama-3.1-8b-instant'),
   GEMINI_API_KEY: z.string().default(''),
   GEMINI_TEXT_MODEL: z.string().default('gemini-2.0-flash'),
   OPENAI_API_KEY: z.string().default(''),
@@ -24,6 +26,8 @@ if (!parsedEnv.success) {
 
 export const config = {
   telegramBotToken: parsedEnv.data.TELEGRAM_BOT_TOKEN,
+  groqApiKey: parsedEnv.data.GROQ_API_KEY,
+  groqTextModel: parsedEnv.data.GROQ_TEXT_MODEL,
   geminiApiKey: parsedEnv.data.GEMINI_API_KEY,
   geminiTextModel: parsedEnv.data.GEMINI_TEXT_MODEL,
   openAiApiKey: parsedEnv.data.OPENAI_API_KEY,
