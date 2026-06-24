@@ -1,6 +1,5 @@
 import { pathToFileURL } from 'node:url';
 import { Markup, Telegraf, type Context } from 'telegraf';
-import { generatePosterUrl } from './services/imageGenerator.js';
 import { generateUniqueMovie } from './services/movieGenerator.js';
 import { findRealMovieDetails } from './services/realMovieMedia.js';
 import { movieDatabase } from './services/database.js';
@@ -73,16 +72,6 @@ export async function generateAndSendMovie(ctx: Context): Promise<void> {
     }
   } catch (error) {
     console.error(`[moviegen] real media/trailer lookup failed for update ${updateId}:`, error);
-  }
-
-  if (!posterUrl) {
-    try {
-      posterUrl = await generatePosterUrl(movie);
-      mediaSource = 'ai-poster';
-      console.log(`[moviegen] AI poster generated for update ${updateId}`);
-    } catch (error) {
-      console.error(`[moviegen] AI poster generation failed for update ${updateId}:`, error);
-    }
   }
 
   await movieDatabase.saveMovie(movie, posterUrl ?? '');

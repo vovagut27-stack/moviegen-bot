@@ -1,7 +1,7 @@
 {
   "name": "moviegen-bot",
   "version": "1.0.0",
-  "description": "Telegram bot that generates unique fictional movies with AI posters.",
+  "description": "Telegram bot that recommends real movies with posters, stills, and trailers.",
   "type": "module",
   "main": "dist/bot.js",
   "scripts": {
@@ -14,6 +14,8 @@
     "telegram",
     "bot",
     "movies",
+    "groq",
+    "tmdb",
     "openai",
     "lowdb"
   ],

@@ -10,8 +10,6 @@ const envSchema = z.object({
   TMDB_API_KEY: z.string().default(''),
   OPENAI_API_KEY: z.string().default(''),
   OPENAI_TEXT_MODEL: z.string().default('gpt-4.1-mini'),
-  OPENAI_IMAGE_MODEL: z.string().default('dall-e-3'),
-  OPENAI_IMAGE_SIZE: z.string().default('1024x1792'),
   DATABASE_PATH: z.string().default(process.env.VERCEL ? '/tmp/moviegen-movies.json' : 'data/movies.json')
 });
 
@@ -34,7 +32,5 @@ export const config = {
   tmdbApiKey: parsedEnv.data.TMDB_API_KEY,
   openAiApiKey: parsedEnv.data.OPENAI_API_KEY,
   openAiTextModel: parsedEnv.data.OPENAI_TEXT_MODEL,
-  openAiImageModel: parsedEnv.data.OPENAI_IMAGE_MODEL,
-  openAiImageSize: parsedEnv.data.OPENAI_IMAGE_SIZE,
   databasePath: process.env.VERCEL ? '/tmp/moviegen-movies.json' : parsedEnv.data.DATABASE_PATH
 } as const;
