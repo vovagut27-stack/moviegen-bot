@@ -15,7 +15,7 @@ type BotOptions = {
 
 function mainMenuKeyboard() {
   return Markup.inlineKeyboard([
-    Markup.button.callback('🎥 Новый фильм', NEW_MOVIE_ACTION)
+    Markup.button.callback('🎥 Подобрать фильм', NEW_MOVIE_ACTION)
   ]);
 }
 
@@ -31,7 +31,7 @@ export async function sendMainMenu(ctx: Context): Promise<void> {
     [
       'Привет! Я <b>MovieGen Bot</b>.',
       '',
-      'Нажми кнопку ниже, и я придумаю уникальный вымышленный фильм с постером, жанрами, рейтингом, режиссёром и актёрами.'
+      'Нажми кнопку ниже, и я подберу реальный фильм с жанрами, рейтингом, режиссёром, актёрами и AI-постером.'
     ].join('\n'),
     {
       parse_mode: 'HTML',
@@ -45,7 +45,7 @@ export async function generateAndSendMovie(ctx: Context): Promise<void> {
   console.log(`[moviegen] generation started for update ${updateId}`);
 
   await ctx.replyWithChatAction('typing');
-  await ctx.reply('Генерирую уникальную идею фильма и постер. Это может занять немного времени...');
+  await ctx.reply('Подбираю реальный фильм и готовлю постер. Это может занять немного времени...');
 
   const movie = await generateUniqueMovie();
   console.log(`[moviegen] movie generated for update ${updateId}: ${movie.title}`);
@@ -104,7 +104,7 @@ export function createBot(options: BotOptions = {}): Telegraf<Context> {
 
       try {
         await ctx.reply(
-          'Не получилось сгенерировать фильм. Проверь OpenAI API key/billing и попробуй ещё раз.',
+          'Не получилось подобрать фильм. Проверь AI API key/лимиты и попробуй ещё раз.',
           movieActionsKeyboard()
         );
       } catch (replyError) {
@@ -128,7 +128,7 @@ export function createBot(options: BotOptions = {}): Telegraf<Context> {
   });
 
   bot.action(NEW_MOVIE_ACTION, async (ctx) => {
-    await ctx.answerCbQuery('Генерирую фильм...');
+    await ctx.answerCbQuery('Подбираю фильм...');
     await runMovieGeneration(ctx);
   });
 

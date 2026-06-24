@@ -7,7 +7,7 @@ import { config } from '../utils/env.js';
 const movieSchema = z.object({
   title: z.string().min(3),
   genres: z.array(z.string().min(2)).min(1).max(3),
-  year: z.coerce.number().int().min(2026).max(2199),
+  year: z.coerce.number().int().min(1888).max(new Date().getFullYear()),
   rating: z.coerce.number().min(1).max(10),
   director: z.string().min(3),
   actors: z.array(z.string().min(3)).min(3).max(5),
@@ -17,36 +17,38 @@ const movieSchema = z.object({
 
 function buildSystemPrompt(): string {
   return [
-    'Ты выдающийся русский кинодраматург, шоураннер и арт-директор.',
-    'Твоя задача — придумывать уникальные вымышленные фильмы для Telegram-бота MovieGen Bot.',
-    'Фильмы должны звучать правдоподобно, атмосферно и разнообразно: sci-fi, horror, драма, комедия, триллер, фэнтези, неонуар, приключения, мистерия.',
-    'Не используй реальные фильмы, реальных режиссёров и реальных актёров.',
-    'Название, жанры, синопсис, режиссёр и актёры должны быть на русском.',
-    'Синопсис: 2–4 предложения, с ясным конфликтом, визуальным образом и эмоциональным крючком.',
-    'posterPrompt пиши на английском: cinematic high quality movie poster, no text, detailed visual composition.',
+    'Ты кинокритик, куратор онлайн-кинотеатра и эксперт по истории кино.',
+    'Твоя задача — подбирать только реальные фильмы, которые действительно существуют и были выпущены в прокат или на стримингах.',
+    'Никогда не выдумывай название, год, режиссёра или актёров. Если не уверен в фактах, выбери другой известный реальный фильм.',
+    'Подбирай разные фильмы по эпохам, странам и жанрам: sci-fi, horror, драма, комедия, триллер, фэнтези, неонуар, приключения, мистерия, артхаус, анимация.',
+    'Название фильма дай на русском, если есть общепринятый русский прокатный перевод; иначе используй оригинальное название.',
+    'Жанры, синопсис, режиссёра и актёров пиши на русском.',
+    'Синопсис: 2–4 предложения, без спойлеров финала, с ясным конфликтом и причиной посмотреть фильм.',
+    'rating — приблизительный IMDb-рейтинг реального фильма от 1 до 10.',
+    'posterPrompt пиши на английском: cinematic high quality alternative movie poster inspired by the real film, no text, no logos, no actor likeness cloning.',
     'Отвечай только валидным JSON без markdown.'
   ].join(' ');
 }
 
 function buildUserPrompt(existingTitles: string[], duplicateReason?: string): string {
   return JSON.stringify({
-    task: 'Generate one original fictional movie.',
+    task: 'Pick one real existing movie and return verified-looking public facts about it.',
     outputShape: {
-      title: 'string, Russian movie title without quotes',
+      title: 'string, Russian release title or original title without quotes',
       genres: ['1-3 Russian genres'],
-      year: 'future or fictional release year, number',
-      rating: 'IMDb-like rating from 6.5 to 9.4, number',
-      director: 'fictional Russian full name',
-      actors: ['3-5 fictional actor names'],
-      synopsis: '2-4 Russian sentences',
-      posterPrompt: 'English prompt for image generation, no text on poster'
+      year: 'real release year, number',
+      rating: 'approximate IMDb rating, number',
+      director: 'real director name in Russian transliteration or common Russian form',
+      actors: ['3-5 real lead actor names in Russian transliteration or common Russian form'],
+      synopsis: '2-4 Russian sentences without ending spoilers',
+      posterPrompt: 'English prompt for alternative poster generation, no text on poster'
     },
     avoidTitles: existingTitles,
     duplicateReason,
-    creativityNotes: [
-      'Prefer bold but believable concepts.',
-      'Avoid generic titles like Тайна, Последний путь, Ночной город.',
-      'Mix genres in unexpected ways while keeping the movie pitch coherent.'
+    selectionNotes: [
+      'Do not pick any title from avoidTitles.',
+      'Prefer well-known real movies, cult classics, festival hits, and high-quality genre films.',
+      'Keep the facts internally consistent with the selected real movie.'
     ]
   });
 }

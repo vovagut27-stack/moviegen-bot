@@ -14,7 +14,7 @@ export function escapeHtml(value: string): string {
 
 export function formatMovieCaption(movie: GeneratedMovie): string {
   return [
-    '🎬 <b>Новый фильм сгенерирован!</b>',
+    '🎬 <b>Фильм подобран!</b>',
     '',
     `<b>Название:</b> «${escapeHtml(movie.title)}»`,
     `<b>Жанр:</b> ${escapeHtml(movie.genres.join(', '))}`,
